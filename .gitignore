@@ -13,3 +13,10 @@
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
+
+# UI
+node_modules
+dist
+
+# MacOS
+DS_Store
