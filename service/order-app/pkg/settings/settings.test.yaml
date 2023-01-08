@@ -1,0 +1,17 @@
+app:
+  name: ""
+  description: ""
+  version: v0.1
+  server:
+    api_base: "/api/v1"
+    port: "8000"
+    domain_name: "localhost"
+    log_level: 1
+conn:
+  sql:
+    driver: ""
+    uri: ""
+    max_conn_life_time: 0
+    max_idle_connections: 0
+    max_open_connections: 0
+    enabled: false
