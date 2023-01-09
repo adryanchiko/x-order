@@ -11,7 +11,8 @@ type service struct {
 }
 
 func (ss *service) RegisterRoutes(router *echo.Group) {
-	router.GET("/order", ss.fetch)
+	router.GET("/orders", ss.fetch)
+	router.GET("/orders-amount", ss.fetchAmount)
 }
 
 func New(config *settings.Settings) registry.Router {
