@@ -13,6 +13,7 @@ import (
 	"github.com/adryanchiko/x-order/service/order-app/pkg/registry"
 	"github.com/adryanchiko/x-order/service/order-app/pkg/settings"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	"github.com/labstack/gommon/log"
 	"github.com/spf13/cobra"
 
@@ -27,6 +28,10 @@ func start(config *settings.Settings) error {
 	// Setup
 	e := echo.New()
 	e.Logger.SetLevel(log.INFO)
+
+	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
+		Format: "time=${time_rfc3339}, method=${method}, uri=${uri}, status=${status}, latency=${latency_human}\n",
+	}))
 
 	groupBase := e.Group(config.App.Server.APIBase)
 
