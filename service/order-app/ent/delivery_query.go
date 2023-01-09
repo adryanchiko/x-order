@@ -27,6 +27,7 @@ type DeliveryQuery struct {
 	predicates    []predicate.Delivery
 	withOrderItem *OrderItemQuery
 	withFKs       bool
+	modifiers     []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -393,6 +394,9 @@ func (dq *DeliveryQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Del
 		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
+	if len(dq.modifiers) > 0 {
+		_spec.Modifiers = dq.modifiers
+	}
 	for i := range hooks {
 		hooks[i](ctx, _spec)
 	}
@@ -443,6 +447,9 @@ func (dq *DeliveryQuery) loadOrderItem(ctx context.Context, query *OrderItemQuer
 
 func (dq *DeliveryQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := dq.querySpec()
+	if len(dq.modifiers) > 0 {
+		_spec.Modifiers = dq.modifiers
+	}
 	_spec.Node.Columns = dq.fields
 	if len(dq.fields) > 0 {
 		_spec.Unique = dq.unique != nil && *dq.unique
@@ -513,6 +520,9 @@ func (dq *DeliveryQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	if dq.unique != nil && *dq.unique {
 		selector.Distinct()
 	}
+	for _, m := range dq.modifiers {
+		m(selector)
+	}
 	for _, p := range dq.predicates {
 		p(selector)
 	}
@@ -528,6 +538,12 @@ func (dq *DeliveryQuery) sqlQuery(ctx context.Context) *sql.Selector {
 		selector.Limit(*limit)
 	}
 	return selector
+}
+
+// Modify adds a query modifier for attaching custom logic to queries.
+func (dq *DeliveryQuery) Modify(modifiers ...func(s *sql.Selector)) *DeliverySelect {
+	dq.modifiers = append(dq.modifiers, modifiers...)
+	return dq.Select()
 }
 
 // DeliveryGroupBy is the group-by builder for Delivery entities.
@@ -618,4 +634,10 @@ func (ds *DeliverySelect) sqlScan(ctx context.Context, root *DeliveryQuery, v an
 	}
 	defer rows.Close()
 	return sql.ScanSlice(rows, v)
+}
+
+// Modify adds a query modifier for attaching custom logic to queries.
+func (ds *DeliverySelect) Modify(modifiers ...func(s *sql.Selector)) *DeliverySelect {
+	ds.modifiers = append(ds.modifiers, modifiers...)
+	return ds
 }

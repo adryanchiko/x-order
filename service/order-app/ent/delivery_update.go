@@ -18,8 +18,9 @@ import (
 // DeliveryUpdate is the builder for updating Delivery entities.
 type DeliveryUpdate struct {
 	config
-	hooks    []Hook
-	mutation *DeliveryMutation
+	hooks     []Hook
+	mutation  *DeliveryMutation
+	modifiers []func(*sql.UpdateBuilder)
 }
 
 // Where appends a list predicates to the DeliveryUpdate builder.
@@ -98,6 +99,12 @@ func (du *DeliveryUpdate) ExecX(ctx context.Context) {
 	}
 }
 
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (du *DeliveryUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *DeliveryUpdate {
+	du.modifiers = append(du.modifiers, modifiers...)
+	return du
+}
+
 func (du *DeliveryUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	_spec := &sqlgraph.UpdateSpec{
 		Node: &sqlgraph.NodeSpec{
@@ -157,6 +164,7 @@ func (du *DeliveryUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.AddModifiers(du.modifiers...)
 	if n, err = sqlgraph.UpdateNodes(ctx, du.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{delivery.Label}
@@ -172,9 +180,10 @@ func (du *DeliveryUpdate) sqlSave(ctx context.Context) (n int, err error) {
 // DeliveryUpdateOne is the builder for updating a single Delivery entity.
 type DeliveryUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
-	mutation *DeliveryMutation
+	fields    []string
+	hooks     []Hook
+	mutation  *DeliveryMutation
+	modifiers []func(*sql.UpdateBuilder)
 }
 
 // SetDeliveredQuantity sets the "delivered_quantity" field.
@@ -254,6 +263,12 @@ func (duo *DeliveryUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (duo *DeliveryUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *DeliveryUpdateOne {
+	duo.modifiers = append(duo.modifiers, modifiers...)
+	return duo
+}
+
 func (duo *DeliveryUpdateOne) sqlSave(ctx context.Context) (_node *Delivery, err error) {
 	_spec := &sqlgraph.UpdateSpec{
 		Node: &sqlgraph.NodeSpec{
@@ -330,6 +345,7 @@ func (duo *DeliveryUpdateOne) sqlSave(ctx context.Context) (_node *Delivery, err
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.AddModifiers(duo.modifiers...)
 	_node = &Delivery{config: duo.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues

@@ -20,8 +20,9 @@ import (
 // OrderUpdate is the builder for updating Order entities.
 type OrderUpdate struct {
 	config
-	hooks    []Hook
-	mutation *OrderMutation
+	hooks     []Hook
+	mutation  *OrderMutation
+	modifiers []func(*sql.UpdateBuilder)
 }
 
 // Where appends a list predicates to the OrderUpdate builder.
@@ -133,6 +134,12 @@ func (ou *OrderUpdate) ExecX(ctx context.Context) {
 	if err := ou.Exec(ctx); err != nil {
 		panic(err)
 	}
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (ou *OrderUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *OrderUpdate {
+	ou.modifiers = append(ou.modifiers, modifiers...)
+	return ou
 }
 
 func (ou *OrderUpdate) sqlSave(ctx context.Context) (n int, err error) {
@@ -248,6 +255,7 @@ func (ou *OrderUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.AddModifiers(ou.modifiers...)
 	if n, err = sqlgraph.UpdateNodes(ctx, ou.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{order.Label}
@@ -263,9 +271,10 @@ func (ou *OrderUpdate) sqlSave(ctx context.Context) (n int, err error) {
 // OrderUpdateOne is the builder for updating a single Order entity.
 type OrderUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
-	mutation *OrderMutation
+	fields    []string
+	hooks     []Hook
+	mutation  *OrderMutation
+	modifiers []func(*sql.UpdateBuilder)
 }
 
 // SetCreatedAt sets the "created_at" field.
@@ -378,6 +387,12 @@ func (ouo *OrderUpdateOne) ExecX(ctx context.Context) {
 	if err := ouo.Exec(ctx); err != nil {
 		panic(err)
 	}
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (ouo *OrderUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *OrderUpdateOne {
+	ouo.modifiers = append(ouo.modifiers, modifiers...)
+	return ouo
 }
 
 func (ouo *OrderUpdateOne) sqlSave(ctx context.Context) (_node *Order, err error) {
@@ -510,6 +525,7 @@ func (ouo *OrderUpdateOne) sqlSave(ctx context.Context) (_node *Order, err error
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.AddModifiers(ouo.modifiers...)
 	_node = &Order{config: ouo.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues

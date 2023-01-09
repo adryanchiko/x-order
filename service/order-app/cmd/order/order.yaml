@@ -14,4 +14,4 @@ conn:
     max_conn_life_time: 0
     max_idle_connections: 0
     max_open_connections: 0
-    enabled: false
+    enabled: true

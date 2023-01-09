@@ -30,6 +30,7 @@ type OrderItemQuery struct {
 	withOrder      *OrderQuery
 	withDeliveries *DeliveryQuery
 	withFKs        bool
+	modifiers      []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -431,6 +432,9 @@ func (oiq *OrderItemQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*O
 		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
+	if len(oiq.modifiers) > 0 {
+		_spec.Modifiers = oiq.modifiers
+	}
 	for i := range hooks {
 		hooks[i](ctx, _spec)
 	}
@@ -519,6 +523,9 @@ func (oiq *OrderItemQuery) loadDeliveries(ctx context.Context, query *DeliveryQu
 
 func (oiq *OrderItemQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := oiq.querySpec()
+	if len(oiq.modifiers) > 0 {
+		_spec.Modifiers = oiq.modifiers
+	}
 	_spec.Node.Columns = oiq.fields
 	if len(oiq.fields) > 0 {
 		_spec.Unique = oiq.unique != nil && *oiq.unique
@@ -589,6 +596,9 @@ func (oiq *OrderItemQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	if oiq.unique != nil && *oiq.unique {
 		selector.Distinct()
 	}
+	for _, m := range oiq.modifiers {
+		m(selector)
+	}
 	for _, p := range oiq.predicates {
 		p(selector)
 	}
@@ -604,6 +614,12 @@ func (oiq *OrderItemQuery) sqlQuery(ctx context.Context) *sql.Selector {
 		selector.Limit(*limit)
 	}
 	return selector
+}
+
+// Modify adds a query modifier for attaching custom logic to queries.
+func (oiq *OrderItemQuery) Modify(modifiers ...func(s *sql.Selector)) *OrderItemSelect {
+	oiq.modifiers = append(oiq.modifiers, modifiers...)
+	return oiq.Select()
 }
 
 // OrderItemGroupBy is the group-by builder for OrderItem entities.
@@ -694,4 +710,10 @@ func (ois *OrderItemSelect) sqlScan(ctx context.Context, root *OrderItemQuery, v
 	}
 	defer rows.Close()
 	return sql.ScanSlice(rows, v)
+}
+
+// Modify adds a query modifier for attaching custom logic to queries.
+func (ois *OrderItemSelect) Modify(modifiers ...func(s *sql.Selector)) *OrderItemSelect {
+	ois.modifiers = append(ois.modifiers, modifiers...)
+	return ois
 }
