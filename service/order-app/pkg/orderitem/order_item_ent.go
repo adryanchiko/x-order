@@ -101,10 +101,11 @@ func (c *orderItemEnt) Find(ctx context.Context, criteria Criteria) (*SearchResu
 	}
 
 	if criteria.From != nil {
-		predicates = append(predicates, predicate.OrderItem(order.CreatedAtGT(*criteria.From)))
+		predicates = append(predicates, orderitem.HasOrderWith(order.CreatedAtGT(*criteria.From)))
 	}
+
 	if criteria.To != nil {
-		predicates = append(predicates, predicate.OrderItem(order.CreatedAtLT(*criteria.To)))
+		predicates = append(predicates, orderitem.HasOrderWith(order.CreatedAtLT(*criteria.To)))
 	}
 
 	if criteria.Limit <= 0 {
@@ -112,8 +113,10 @@ func (c *orderItemEnt) Find(ctx context.Context, criteria Criteria) (*SearchResu
 	}
 
 	filterQuery := entsql.DB().
-		OrderItem.
+		Order.
 		Query().
+		Order(ent.Desc(order.FieldCreatedAt)).
+		QueryOrderItems().
 		Where(predicates...).
 		WithOrder(func(q *ent.OrderQuery) {
 			q.WithCustomer(func(q *ent.CustomerQuery) {
@@ -172,10 +175,11 @@ func (c *orderItemEnt) TotalAmount(ctx context.Context, criteria Criteria) (int,
 	}
 
 	if criteria.From != nil {
-		predicates = append(predicates, predicate.OrderItem(order.CreatedAtGT(*criteria.From)))
+		predicates = append(predicates, orderitem.HasOrderWith(order.CreatedAtGT(*criteria.From)))
 	}
+
 	if criteria.To != nil {
-		predicates = append(predicates, predicate.OrderItem(order.CreatedAtLT(*criteria.To)))
+		predicates = append(predicates, orderitem.HasOrderWith(order.CreatedAtLT(*criteria.To)))
 	}
 
 	if criteria.Limit <= 0 {

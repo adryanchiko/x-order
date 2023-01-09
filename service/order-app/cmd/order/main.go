@@ -27,10 +27,16 @@ import (
 func start(config *settings.Settings) error {
 	// Setup
 	e := echo.New()
-	e.Logger.SetLevel(log.INFO)
+	e.Logger.SetLevel(log.Lvl(config.App.Server.LogLevel))
 
 	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
 		Format: "time=${time_rfc3339}, method=${method}, uri=${uri}, status=${status}, latency=${latency_human}\n",
+	}))
+
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins:     []string{"*"},
+		AllowHeaders:     []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
+		AllowCredentials: true,
 	}))
 
 	groupBase := e.Group(config.App.Server.APIBase)
