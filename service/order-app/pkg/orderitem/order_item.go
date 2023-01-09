@@ -44,6 +44,7 @@ type (
 		Create(context.Context, *NewOrderItem) (int, error)
 		BulkCreate(ctx context.Context, companies []NewOrderItem) error
 		Find(ctx context.Context, criteria Criteria) (*SearchResult, error)
+		TotalAmount(ctx context.Context, criteria Criteria) (int, error)
 	}
 )
 

@@ -23,3 +23,17 @@ func (ss *service) fetch(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, res)
 }
+
+func (ss *service) fetchAmount(c echo.Context) error {
+	store := orderitem.NewOrderItemEnt()
+	res, err := store.TotalAmount(c.Request().Context(), orderitem.Criteria{
+		Find: helper.Find{
+			Keyword: "",
+		},
+	})
+	if err != nil {
+		return c.String(http.StatusBadRequest, err.Error())
+	}
+
+	return c.JSON(http.StatusOK, res)
+}

@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"github.com/adryanchiko/x-order/service/order-app/ent"
+	"github.com/adryanchiko/x-order/service/order-app/ent/company"
+	"github.com/adryanchiko/x-order/service/order-app/ent/customer"
 	"github.com/adryanchiko/x-order/service/order-app/ent/order"
 	"github.com/adryanchiko/x-order/service/order-app/ent/orderitem"
 	"github.com/adryanchiko/x-order/service/order-app/ent/predicate"
@@ -78,7 +80,21 @@ func (c *orderItemEnt) Find(ctx context.Context, criteria Criteria) (*SearchResu
 			orderitem.Or(
 				orderitem.ProductContainsFold(criteria.Keyword),
 				orderitem.HasOrderWith(
-					predicate.Order(order.OrderNameContainsFold(criteria.Keyword)),
+					predicate.Order(
+						order.Or(
+							order.OrderNameContainsFold(criteria.Keyword),
+							order.HasCustomerWith(
+								predicate.Customer(
+									customer.Or(
+										customer.NameContainsFold(criteria.Keyword),
+										customer.HasCompanyWith(
+											predicate.Company(company.CompanyNameContainsFold(criteria.Keyword)),
+										),
+									),
+								),
+							),
+						),
+					),
 				),
 			),
 		)
@@ -125,6 +141,63 @@ func (c *orderItemEnt) Find(ctx context.Context, criteria Criteria) (*SearchResu
 	}
 
 	return &result, nil
+}
+
+func (c *orderItemEnt) TotalAmount(ctx context.Context, criteria Criteria) (int, error) {
+	predicates := []predicate.OrderItem{}
+
+	if criteria.Keyword != "" {
+		predicates = append(predicates,
+			orderitem.Or(
+				orderitem.ProductContainsFold(criteria.Keyword),
+				orderitem.HasOrderWith(
+					predicate.Order(
+						order.Or(
+							order.OrderNameContainsFold(criteria.Keyword),
+							order.HasCustomerWith(
+								predicate.Customer(
+									customer.Or(
+										customer.NameContainsFold(criteria.Keyword),
+										customer.HasCompanyWith(
+											predicate.Company(company.CompanyNameContainsFold(criteria.Keyword)),
+										),
+									),
+								),
+							),
+						),
+					),
+				),
+			),
+		)
+	}
+
+	if criteria.From != nil {
+		predicates = append(predicates, predicate.OrderItem(order.CreatedAtGT(*criteria.From)))
+	}
+	if criteria.To != nil {
+		predicates = append(predicates, predicate.OrderItem(order.CreatedAtLT(*criteria.To)))
+	}
+
+	if criteria.Limit <= 0 {
+		criteria.Limit = defaultLimit
+	}
+
+	rows, err := entsql.DB().
+		OrderItem.
+		Query().
+		Where(predicates...).
+		WithOrder().
+		All(ctx)
+	if err != nil {
+		return -1, err
+	}
+
+	total := 0
+	for _, r := range rows {
+		total += r.PricePerUnit * r.Quantity
+	}
+
+	return total, nil
 }
 
 func NewOrderItemEnt() Store {
