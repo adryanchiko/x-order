@@ -4,8 +4,14 @@ import (
 	"context"
 
 	"github.com/adryanchiko/x-order/service/order-app/ent"
+	"github.com/adryanchiko/x-order/service/order-app/ent/order"
+	"github.com/adryanchiko/x-order/service/order-app/ent/orderitem"
+	"github.com/adryanchiko/x-order/service/order-app/ent/predicate"
+	"github.com/adryanchiko/x-order/service/order-app/lib/helper"
 	"github.com/adryanchiko/x-order/service/order-app/pkg/db/entsql"
 )
+
+const defaultLimit = 5
 
 type orderItemEnt struct{}
 
@@ -61,6 +67,64 @@ func (c *orderItemEnt) BulkCreate(ctx context.Context, companies []NewOrderItem)
 	})
 
 	return err
+}
+
+func (c *orderItemEnt) Find(ctx context.Context, criteria Criteria) (*SearchResult, error) {
+	var result SearchResult
+	predicates := []predicate.OrderItem{}
+
+	if criteria.Keyword != "" {
+		predicates = append(predicates,
+			orderitem.Or(
+				orderitem.ProductContainsFold(criteria.Keyword),
+				orderitem.HasOrderWith(
+					predicate.Order(order.OrderNameContainsFold(criteria.Keyword)),
+				),
+			),
+		)
+	}
+
+	if criteria.From != nil {
+		predicates = append(predicates, predicate.OrderItem(order.CreatedAtGT(*criteria.From)))
+	}
+	if criteria.To != nil {
+		predicates = append(predicates, predicate.OrderItem(order.CreatedAtLT(*criteria.To)))
+	}
+
+	if criteria.Limit <= 0 {
+		criteria.Limit = defaultLimit
+	}
+
+	filterQuery := entsql.DB().
+		OrderItem.
+		Query().
+		Where(predicates...).
+		WithOrder(func(q *ent.OrderQuery) {
+			q.WithCustomer(func(q *ent.CustomerQuery) {
+				q.WithCompany()
+			})
+		}).
+		WithDeliveries()
+
+	if err := helper.WithPaginationData(
+		ctx, &result.Pagination, filterQuery, criteria.Find,
+	); err != nil {
+		return nil, err
+	}
+
+	rows, err := filterQuery.
+		Offset(criteria.Skip).
+		Limit(criteria.Limit).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, r := range rows {
+		result.Records = append(result.Records, new(RecordOrderItem).FromEnt(r))
+	}
+
+	return &result, nil
 }
 
 func NewOrderItemEnt() Store {

@@ -27,6 +27,7 @@ type CompanyQuery struct {
 	inters        []Interceptor
 	predicates    []predicate.Company
 	withCustomers *CustomerQuery
+	modifiers     []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -386,6 +387,9 @@ func (cq *CompanyQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Comp
 		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
+	if len(cq.modifiers) > 0 {
+		_spec.Modifiers = cq.modifiers
+	}
 	for i := range hooks {
 		hooks[i](ctx, _spec)
 	}
@@ -439,6 +443,9 @@ func (cq *CompanyQuery) loadCustomers(ctx context.Context, query *CustomerQuery,
 
 func (cq *CompanyQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := cq.querySpec()
+	if len(cq.modifiers) > 0 {
+		_spec.Modifiers = cq.modifiers
+	}
 	_spec.Node.Columns = cq.fields
 	if len(cq.fields) > 0 {
 		_spec.Unique = cq.unique != nil && *cq.unique
@@ -509,6 +516,9 @@ func (cq *CompanyQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	if cq.unique != nil && *cq.unique {
 		selector.Distinct()
 	}
+	for _, m := range cq.modifiers {
+		m(selector)
+	}
 	for _, p := range cq.predicates {
 		p(selector)
 	}
@@ -524,6 +534,12 @@ func (cq *CompanyQuery) sqlQuery(ctx context.Context) *sql.Selector {
 		selector.Limit(*limit)
 	}
 	return selector
+}
+
+// Modify adds a query modifier for attaching custom logic to queries.
+func (cq *CompanyQuery) Modify(modifiers ...func(s *sql.Selector)) *CompanySelect {
+	cq.modifiers = append(cq.modifiers, modifiers...)
+	return cq.Select()
 }
 
 // CompanyGroupBy is the group-by builder for Company entities.
@@ -614,4 +630,10 @@ func (cs *CompanySelect) sqlScan(ctx context.Context, root *CompanyQuery, v any)
 	}
 	defer rows.Close()
 	return sql.ScanSlice(rows, v)
+}
+
+// Modify adds a query modifier for attaching custom logic to queries.
+func (cs *CompanySelect) Modify(modifiers ...func(s *sql.Selector)) *CompanySelect {
+	cs.modifiers = append(cs.modifiers, modifiers...)
+	return cs
 }

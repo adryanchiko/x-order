@@ -20,8 +20,9 @@ import (
 // CustomerUpdate is the builder for updating Customer entities.
 type CustomerUpdate struct {
 	config
-	hooks    []Hook
-	mutation *CustomerMutation
+	hooks     []Hook
+	mutation  *CustomerMutation
+	modifiers []func(*sql.UpdateBuilder)
 }
 
 // Where appends a list predicates to the CustomerUpdate builder.
@@ -153,6 +154,12 @@ func (cu *CustomerUpdate) ExecX(ctx context.Context) {
 	}
 }
 
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (cu *CustomerUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *CustomerUpdate {
+	cu.modifiers = append(cu.modifiers, modifiers...)
+	return cu
+}
+
 func (cu *CustomerUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	_spec := &sqlgraph.UpdateSpec{
 		Node: &sqlgraph.NodeSpec{
@@ -277,6 +284,7 @@ func (cu *CustomerUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.AddModifiers(cu.modifiers...)
 	if n, err = sqlgraph.UpdateNodes(ctx, cu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{customer.Label}
@@ -292,9 +300,10 @@ func (cu *CustomerUpdate) sqlSave(ctx context.Context) (n int, err error) {
 // CustomerUpdateOne is the builder for updating a single Customer entity.
 type CustomerUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
-	mutation *CustomerMutation
+	fields    []string
+	hooks     []Hook
+	mutation  *CustomerMutation
+	modifiers []func(*sql.UpdateBuilder)
 }
 
 // SetLogin sets the "login" field.
@@ -425,6 +434,12 @@ func (cuo *CustomerUpdateOne) ExecX(ctx context.Context) {
 	if err := cuo.Exec(ctx); err != nil {
 		panic(err)
 	}
+}
+
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (cuo *CustomerUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *CustomerUpdateOne {
+	cuo.modifiers = append(cuo.modifiers, modifiers...)
+	return cuo
 }
 
 func (cuo *CustomerUpdateOne) sqlSave(ctx context.Context) (_node *Customer, err error) {
@@ -568,6 +583,7 @@ func (cuo *CustomerUpdateOne) sqlSave(ctx context.Context) (_node *Customer, err
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.AddModifiers(cuo.modifiers...)
 	_node = &Customer{config: cuo.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
