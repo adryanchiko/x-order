@@ -43,6 +43,7 @@ cd cmd/order
 
 ...
 -- update order.yaml
+-- notes: for server port DO NOT EDIT! because in frontend app still using static url to call API service
 ...
 
 go build
@@ -87,10 +88,10 @@ ____________________________________O/_______
 
 ### Setup Frontend
 
-Go to folder `x-order/service/frontend` and then install dependencies using `yarn`
+Go to folder `x-order/frontend` and then install dependencies using `yarn`
 
 ```
-cd $GOPATH/src/github.com/adryanchiko/x-order/service/frontend
+cd $GOPATH/src/github.com/adryanchiko/x-order/frontend
 
 yarn install
 ```
