@@ -36,7 +36,7 @@
       <p class="font-weight-bold">Total Amount : {{ total_amount > 0 ? '$' + total_amount : '-' }}</p>
     </div>
     <div>
-      <v-table>
+      <v-table class="border">
         <thead>
           <tr>
             <th class="text-left">
@@ -73,6 +73,9 @@
           </tr>
         </tbody>
       </v-table>
+      <div class="mt-4">
+        <v-pagination v-model="page" :length="total_pages" active-color="primary" density="comfortable" />
+      </div>
     </div>
     <div>
     </div>
@@ -82,7 +85,57 @@
 <script lang="ts" setup>
 
 import moment from 'moment'
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onBeforeMount, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
+import router from '@/router';
+
+const route = useRoute()
+
+let page = ref(1)
+let total_amount = ref(0)
+let records = ref([{
+  id: '',
+  price_per_unit: '',
+  quantity: '',
+  product: '',
+  created_at: '',
+  order_name: '',
+  customer_name: '',
+  customer_company: '',
+  delivered_amount: 0,
+  total_amount: 0,
+}])
+let total_pages = ref(0)
+let total_records = ref(0)
+let keyword = ref('')
+let skip = ref('0')
+let startDate = ref('')
+let endDate = ref('')
+
+watch(keyword, () => {
+  debounceFetch()
+})
+
+watch(startDate, () => {
+  debounceFetch()
+})
+
+watch(endDate, () => {
+  debounceFetch()
+})
+
+watch(page, () => {
+  skip.value = ((page.value - 1) * 5).toString()
+  doFetch()
+})
+
+onBeforeMount(() => {
+  loadState()
+})
+
+onMounted(() => {
+  debounceFetch()
+})
 
 function debounce<T>(fn: T, wait: number) {
   const timeoutId = window.setTimeout(() => { }, 0);
@@ -96,68 +149,34 @@ function debounce<T>(fn: T, wait: number) {
   }, wait)
 }
 
-const headers = [
-  {
-    text: 'Dessert (100g serving)',
-    align: 'start',
-    sortable: false,
-    value: 'name',
-  },
-  { text: 'Calories', value: 'calories' },
-  { text: 'Fat (g)', value: 'fat' },
-  { text: 'Carbs (g)', value: 'carbs' },
-  { text: 'Protein (g)', value: 'protein' },
-  { text: 'Iron (%)', value: 'iron' },
-]
-
-let total_amount = ref(0)
-
-let records = ref([{
-  id: '',
-  price_per_unit: '',
-  quantity: '',
-  product: '',
-  created_at: '',
-  order_name: '',
-  customer_name: '',
-  customer_company: '',
-  delivered_amount: 0,
-  total_amount: 0,
-}])
-let total_page = ref(0)
-let total_records = ref(0)
-
-let keyword = ref('')
-let startDate = ref('')
-let endDate = ref('')
-
-watch(keyword, () => {
-  debounce(doFetch, 500)
-})
-
-watch(startDate, () => {
-  debounce(doFetch, 500)
-})
-
-watch(endDate, () => {
-  debounce(doFetch, 500)
-})
-
-onMounted(() => {
-  doFetch()
-})
-
 function newDateFormat(v: string): string {
   const momentDate = moment(v)
   return momentDate.isValid() ? momentDate.format('DD-MMM-YYYY HH:mm:ss') : ''
 }
 
+function loadState() {
+  keyword.value = route.query['keyword']?.toString() || ''
+  skip.value = route.query['skip']?.toString() || ''
+  startDate.value = route.query['start_date']?.toString() || ''
+  endDate.value = route.query['end_date']?.toString() || ''
+  page.value = +(route.query['page']?.toString() || 1)
+}
+
+function saveState(params: any) {
+  router.replace({ path: '/orders', query: params })
+}
+
+function debounceFetch() {
+  debounce(doFetch, 200)
+}
+
 function doFetch() {
   const params = {
     keyword: keyword.value,
-    skip: '0',
+    skip: skip.value,
     start_date: '',
-    end_date: ''
+    end_date: '',
+    page: page.value.toString()
   }
 
   if (startDate.value) {
@@ -174,6 +193,9 @@ function doFetch() {
     params.end_date = eDate.toISOString()
   }
 
+  // save state
+  saveState(params)
+
   fetch('http://localhost:8000/api/v1/orders?' + new URLSearchParams(params).toString())
     .then((response) => {
       return response.json()
@@ -181,7 +203,7 @@ function doFetch() {
     .then(data => {
       records.value = data.records
       total_records.value = data.total_records
-      total_page.value = data.total_page
+      total_pages.value = data.total_pages
     })
 
   fetch('http://localhost:8000/api/v1/orders-amount?' + new URLSearchParams(params).toString())
@@ -193,3 +215,10 @@ function doFetch() {
     })
 }
 </script>
+
+<style>
+.border {
+  border: 1px solid;
+  border-radius: 0.5em;
+}
+</style>

@@ -25,8 +25,6 @@ func (ss *service) fetch(c echo.Context) error {
 		return c.String(http.StatusBadRequest, "bad request")
 	}
 
-	store := orderitem.NewOrderItemEnt()
-
 	criteria := orderitem.Criteria{
 		Find: helper.Find{
 			Keyword: q.Keyword,
@@ -57,7 +55,7 @@ func (ss *service) fetch(c echo.Context) error {
 		criteria.Find.To = &endDate
 	}
 
-	c.Logger().Debug(q)
+	store := orderitem.NewOrderItemEnt()
 	res, err := store.Find(c.Request().Context(), criteria)
 	if err != nil {
 		c.Logger().Error(err)
@@ -68,12 +66,42 @@ func (ss *service) fetch(c echo.Context) error {
 }
 
 func (ss *service) fetchAmount(c echo.Context) error {
-	store := orderitem.NewOrderItemEnt()
-	res, err := store.TotalAmount(c.Request().Context(), orderitem.Criteria{
+	var q fetchQuery
+	if err := c.Bind(&q); err != nil {
+		c.Logger().Error(err)
+		return c.String(http.StatusBadRequest, "bad request")
+	}
+
+	criteria := orderitem.Criteria{
 		Find: helper.Find{
-			Keyword: "",
+			Keyword: q.Keyword,
 		},
-	})
+	}
+
+	if q.StartDate != "" {
+		layout := "2006-01-02T15:04:05.000Z"
+		startDate, err := time.Parse(layout, q.StartDate)
+		if err != nil {
+			c.Logger().Error(err)
+			return c.String(http.StatusBadRequest, "bad request")
+		}
+
+		criteria.Find.From = &startDate
+	}
+
+	if q.EndDate != "" {
+		layout := "2006-01-02T15:04:05.000Z"
+		endDate, err := time.Parse(layout, q.EndDate)
+		if err != nil {
+			c.Logger().Error(err)
+			return c.String(http.StatusBadRequest, "bad request")
+		}
+
+		criteria.Find.To = &endDate
+	}
+
+	store := orderitem.NewOrderItemEnt()
+	res, err := store.TotalAmount(c.Request().Context(), criteria)
 	if err != nil {
 		return c.String(http.StatusBadRequest, err.Error())
 	}
