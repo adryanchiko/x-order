@@ -25,7 +25,7 @@ import (
 )
 
 func start(config *settings.Settings) error {
-	// Setup
+	// Setups
 	e := echo.New()
 	e.Logger.SetLevel(log.Lvl(config.App.Server.LogLevel))
 
